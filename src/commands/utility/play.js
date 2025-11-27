@@ -52,6 +52,14 @@ export default {
         .setDescription('Join the play queue for a game/mode'),
     async execute(interaction) {
         if (interaction.isChatInputCommand() && interaction.commandName === 'play') {
+			// éviter doublons
+			const exists = db.prepare('SELECT game, mode, enqueued_at FROM queues WHERE discord_id=?').get(interaction.user.id);
+			if (exists) {
+				const game = games.find(g => g.value === exists.game);
+				const mode = game?.modes.find(m => m.value === exists.mode);
+				return interaction.reply({ content: `Tu es déjà en file pour le jeu ${game?.label} / ${mode?.label} <t:${Math.floor(exists.enqueued_at / 1000)}:R>.`, ephemeral: true });
+			}
+
 			picks.set(interaction.user.id, {}); // reset
 			return interaction.reply({
 			content: 'Sélectionne **jeu** et **mode** puis clique **Rejoindre**.',
@@ -80,25 +88,35 @@ export default {
 
 		// 4) Bouton "Rejoindre" → enfile et essaie de matcher
 		if (interaction.isButton() && interaction.customId === 'queue_join') {
+			await interaction.deferUpdate({ ephemeral: true });
+
 			const sel = picks.get(interaction.user.id);
 			if (!sel?.game || !sel?.mode) {
-			return interaction.reply({ content: 'Choisis d’abord jeu et mode.', ephemeral: true });
+			return interaction.editReply({ content: 'Choisis d’abord jeu et mode.', ephemeral: true });
 			}
 			// éviter doublons
 			const exists = db.prepare(
-			'SELECT 1 FROM queues WHERE discord_id=?'
+			'SELECT game, mode FROM queues WHERE discord_id=?'
 			).get(interaction.user.id);
 			if (exists) {
-				return interaction.update({ content: 'Tu es déjà en file', components: [] });
+				const game = games.find(g => g.value === exists.game);
+				const mode = game?.modes.find(m => m.value === exists.mode);
+				return interaction.editReply({ content: `Tu es déjà en file pour le jeu ${game?.label} et le mode ${mode?.label}.`, components: [] });
 			}
 
 			db.prepare(
 			'INSERT INTO queues(discord_id, game, mode, enqueued_at) VALUES (?,?,?,?)'
 			).run(interaction.user.id, sel.game, sel.mode, Date.now());
 
-			picks.delete(interaction.user.id);
-			await interaction.update({ content: `Inscrit sur **${sel.game} / ${sel.mode}**.`, components: [] });
+			await interaction.editReply({ content: `Inscrit sur **${sel.game} / ${sel.mode}** <t:${Math.floor(Date.now() / 1000)}:R>. Recherche de joueurs en cours...`, components: [] });
 
+			// Simule un long processus avec un sleep de 3 secondes
+			await new Promise(resolve => setTimeout(resolve, 10000));
+			db.prepare(
+			'DELETE FROM queues WHERE discord_id = ?'
+			).run(interaction.user.id);
+
+			await interaction.editReply({ content: `Joueur trouvé`, components: [] });
 			// essaie de matcher dans le même salon où /play a été tapé
 			tryMatch(interaction.guild, sel.game, sel.mode, interaction.channel);
 		}
