@@ -1,19 +1,49 @@
-import { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, TextDisplayBuilder, LabelBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
+import db from '../../db.js';	
+import { games } from '../../mocks.js';
 
-const games = [
-	{ label: 'League of Legends', value: 'lol' },
-	{ label: 'Overwatch', value: 'ow' },
-	{ label: 'Counter-Strike: Global Offensive', value: 'csgo' },
-	{ label: 'Fortnite', value: 'fortnite' },
-	{ label: 'Apex Legends', value: 'apex' },
-	{ label: 'Rainbow Six Siege', value: 'r6s' },
-	{ label: 'Hearthstone', value: 'hs' },
-	{ label: 'Dota 2', value: 'dota2' },
-	{ label: 'World of Warcraft', value: 'wow' },
-	{ label: 'Grand Theft Auto V', value: 'gta5' },
-	{ label: 'Valorant', value: 'valorant' },
-	{ label: 'Rocket League', value: 'rl' }
-]
+const picks = new Map(); // userId -> { game?: string, mode?: string }
+
+function buildPlayUI(sel = {}) {
+  const selectedGame = games.find(g => g.value === sel.game);
+
+  const gameMenu = new StringSelectMenuBuilder()
+    .setCustomId('game_select')
+    .setPlaceholder('Choisis ton jeu')
+    .addOptions(games.map(g => ({ ...g, default: sel.game === g.value })))
+    .setMinValues(1).setMaxValues(1);
+
+  const modeOptions = selectedGame 
+    ? selectedGame.modes.map(m => ({ ...m, default: sel.mode === m.value }))
+    : [];
+
+  const modeMenu = new StringSelectMenuBuilder()
+    .setCustomId('mode_select')
+    .setPlaceholder(sel.mode ? modeOptions?.find(m => m.value === sel.mode)?.label : 'Choisis ton mode')
+    .setOptions(modeOptions.length > 0 ? modeOptions : [{ label: 'Sélectionne un jeu d\'abord', value: 'disabled', default: false }])
+	.setDisabled(!sel.game)
+    .setMinValues(1).setMaxValues(1);
+
+  const rows = [
+    new ActionRowBuilder().addComponents(gameMenu),
+    new ActionRowBuilder().addComponents(modeMenu)
+  ];
+
+  const canJoin = !!sel.game && !!sel.mode;
+  const join = new ButtonBuilder()
+    .setCustomId('queue_join')
+    .setLabel(sel.game && sel.mode ? `Rejoindre: ${selectedGame?.label} / ${modeOptions.find(m => m.value === sel.mode)?.label}` : 'Rejoindre')
+    .setStyle(ButtonStyle.Success)
+    .setDisabled(!canJoin);
+
+  const cancel = new ButtonBuilder()
+    .setCustomId('queue_cancel_picker')
+    .setLabel('Annuler')
+    .setStyle(ButtonStyle.Secondary);
+
+  rows.push(new ActionRowBuilder().addComponents(join, cancel));
+  return rows;
+}
 
 export default {
     cooldown: 10,
@@ -21,37 +51,56 @@ export default {
         .setName('play')
         .setDescription('Join the play queue for a game/mode'),
     async execute(interaction) {
-        const modal = new ModalBuilder()
-            .setCustomId('myModal')
-            .setTitle('My Modal');
-        // Create the text input components
-		const favoriteColorInput = new TextInputBuilder()
-			.setCustomId('favoriteColorInput')
-			// The label is the prompt the user sees for this input
-			.setLabel("What's your favorite color?")
-			// Short means only a single line of text
-			.setStyle(TextInputStyle.Short);
-		const hobbiesInput = new TextInputBuilder()
-			.setCustomId('hobbiesInput')
-			.setLabel("What's some of your favorite hobbies?")
-			// Paragraph means multiple lines of text.
-			.setStyle(TextInputStyle.Paragraph);
-		// An action row only holds one text input,
-		// so you need one action row per text input.
-		const firstActionRow = new ActionRowBuilder().addComponents(favoriteColorInput);
-		const secondActionRow = new ActionRowBuilder().addComponents(hobbiesInput);
-		// Add inputs to the modal
-        const label = new LabelBuilder()
-            .setLabel("Games :")
-            .setId(1)
-            .setStringSelectMenuComponent(new StringSelectMenuBuilder()
-				.setCustomId('test')
-				.setPlaceholder('Select a game')
-				.addOptions(games)
-				.setMinValues(1));
-        modal.addLabelComponents(label);
-		modal.addComponents(firstActionRow);
-		// Show the modal to the user
-		await interaction.showModal(modal); 
+        if (interaction.isChatInputCommand() && interaction.commandName === 'play') {
+			picks.set(interaction.user.id, {}); // reset
+			return interaction.reply({
+			content: 'Sélectionne **jeu** et **mode** puis clique **Rejoindre**.',
+			components: buildPlayUI(),
+			ephemeral: true
+			});
+		}
+
+		// 2) Sélections
+		if (interaction.isStringSelectMenu() && (interaction.customId === 'game_select' || interaction.customId === 'mode_select')) {
+			const cur = picks.get(interaction.user.id) || {};
+			if (interaction.customId === 'game_select') {
+				cur.game = interaction.values[0];
+				delete cur.mode; // Réinitialise le mode si le jeu change
+			}
+			if (interaction.customId === 'mode_select') cur.mode = interaction.values[0];
+			picks.set(interaction.user.id, cur);
+			return interaction.update({ components: buildPlayUI(cur) }); // met à jour le bouton
+		}
+
+		// 3) Bouton "Annuler" du picker
+		if (interaction.isButton() && interaction.customId === 'queue_cancel_picker') {
+			picks.delete(interaction.user.id);
+			return interaction.update({ content: 'Sélection annulée.', components: [] });
+		}
+
+		// 4) Bouton "Rejoindre" → enfile et essaie de matcher
+		if (interaction.isButton() && interaction.customId === 'queue_join') {
+			const sel = picks.get(interaction.user.id);
+			if (!sel?.game || !sel?.mode) {
+			return interaction.reply({ content: 'Choisis d’abord jeu et mode.', ephemeral: true });
+			}
+			// éviter doublons
+			const exists = db.prepare(
+			'SELECT 1 FROM queues WHERE discord_id=?'
+			).get(interaction.user.id);
+			if (exists) {
+				return interaction.update({ content: 'Tu es déjà en file', components: [] });
+			}
+
+			db.prepare(
+			'INSERT INTO queues(discord_id, game, mode, enqueued_at) VALUES (?,?,?,?)'
+			).run(interaction.user.id, sel.game, sel.mode, Date.now());
+
+			picks.delete(interaction.user.id);
+			await interaction.update({ content: `Inscrit sur **${sel.game} / ${sel.mode}**.`, components: [] });
+
+			// essaie de matcher dans le même salon où /play a été tapé
+			tryMatch(interaction.guild, sel.game, sel.mode, interaction.channel);
+		}
     },
 }
