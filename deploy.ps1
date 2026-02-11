@@ -49,7 +49,7 @@ Write-Host "Creation et transfert de l'archive..." -ForegroundColor Green
 $prevErrorAction = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 
-$excludes = "--exclude=node_modules --exclude=.git --exclude=*.log --exclude=logs --exclude=deploy.tar.gz --exclude=deploy.ps1"
+$excludes = "--exclude=node_modules --exclude=.git --exclude=*.log --exclude=logs --exclude=deploy.tar.gz --exclude=deploy.ps1 --exclude=dashboard/node_modules --exclude=dashboard/.vite"
 $tarCommand = "tar -czf - $excludes . | ssh $sshHost `"cat > $remotePath/deploy.tar.gz`""
 
 # Executer via cmd pour que le pipe fonctionne correctement

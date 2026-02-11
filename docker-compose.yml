@@ -19,6 +19,23 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:7
+    container_name: teemate-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - teemate-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -36,3 +53,6 @@ services:
 networks:
   teemate-network:
     driver: bridge
+
+volumes:
+  mongodb_data:

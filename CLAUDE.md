@@ -4,7 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a minimal Discord bot application built with Express.js. It implements a simple `/ping` slash command to demonstrate Discord's interactions API. It uses Discord's Components v2 API with the `discord-interactions` package.
+Teemate is a Discord bot with a web dashboard (inspired by carl.gg). It features:
+- `/ping` slash command via Discord Interactions API
+- Web dashboard at `/dashboard` for managing server settings
+- Welcome messages with embed support
+- Moderation logs tracking server events
+- Discord OAuth2 authentication
+
+## Stack
+
+- **Backend**: Express.js + MongoDB (Mongoose) + Discord Gateway (ws)
+- **Frontend**: React 19 (Vite) with React Router, custom dark theme CSS
+- **Auth**: Discord OAuth2 (scopes: `identify`, `guilds`)
+- **Deployment**: Docker multi-container (discord-app, mongodb, cloudflared)
 
 ## Environment Setup
 
@@ -12,6 +24,11 @@ Create a `.env` file with the following required variables:
 - `APP_ID` - Discord application ID
 - `DISCORD_TOKEN` - Bot token
 - `PUBLIC_KEY` - Public key for verifying Discord requests
+- `CLIENT_SECRET` - Discord OAuth2 client secret
+- `SESSION_SECRET` - Random string for session security
+- `DASHBOARD_URL` - Dashboard base URL (e.g., `https://discord.teemate.gg`)
+- `MONGODB_URI` - MongoDB connection string (default: `mongodb://mongodb:27017/teemate`)
+- `TUNNEL_TOKEN` - Cloudflare tunnel token
 - `PORT` (optional) - Server port, defaults to 3000
 
 ## Common Commands
@@ -19,13 +36,13 @@ Create a `.env` file with the following required variables:
 ### Install dependencies
 ```bash
 npm install
+cd dashboard && npm install
 ```
 
 ### Register slash commands with Discord
 ```bash
 npm run register
 ```
-This must be run whenever commands are modified in `commands.js`.
 
 ### Run the application
 ```bash
@@ -34,89 +51,96 @@ npm start
 npm run dev
 ```
 
-### Set up ngrok for local development
+### Build dashboard
 ```bash
-ngrok http 3000
+cd dashboard && npm run build
 ```
-Configure the ngrok HTTPS URL + `/interactions` as the Interactions Endpoint URL in Discord Developer Portal.
+
+### Dashboard dev server (with API proxy)
+```bash
+cd dashboard && npm run dev
+```
 
 ## Architecture
 
-### Core Files
+### Project Structure
 
-- **app.js** - Main Express server and interaction handler
-  - Single POST endpoint `/interactions` that handles all Discord interactions
-  - Uses `verifyKeyMiddleware` to verify request signatures from Discord
-  - Handles `PING` (verification) and `APPLICATION_COMMAND` (slash commands)
-  - `/health` endpoint for Docker healthcheck
+```
+teemate-discord-app/
+├── src/                      # Backend
+│   ├── app.js                # Express server (entry point)
+│   ├── db.js                 # MongoDB connection
+│   ├── bot/
+│   │   ├── commands.js       # Slash command definitions
+│   │   ├── handlers.js       # Interaction handlers
+│   │   ├── gateway.js        # Discord Gateway (WebSocket events)
+│   │   └── utils.js          # Discord API helpers
+│   ├── api/
+│   │   ├── auth.js           # OAuth2 routes (/api/auth/*)
+│   │   ├── guilds.js         # Guild config routes (/api/guilds/*)
+│   │   └── middleware.js     # Auth middleware
+│   └── models/
+│       ├── GuildConfig.js    # Server config schema
+│       └── Session.js        # User session schema
+├── dashboard/                # React SPA (Vite)
+│   ├── src/
+│   │   ├── App.jsx           # Router setup
+│   │   ├── api/client.js     # API fetch wrapper
+│   │   ├── components/       # Layout, Sidebar, Header, etc.
+│   │   └── pages/            # Login, ServerList, Overview, Welcome, Logs
+│   ├── index.html
+│   └── vite.config.js
+├── docker-compose.yml        # 3 services: discord-app, mongodb, cloudflared
+└── Dockerfile                # Multi-stage (React build + Node production)
+```
 
-- **commands.js** - Command definitions and registration script
-  - Exports `ALL_COMMANDS` array with slash command payloads
-  - When executed directly (`npm run register`), installs commands globally via Discord API
-  - Uses `InstallGlobalCommands` utility to bulk overwrite commands
+### Key Endpoints
 
-- **utils.js** - Discord API helpers
-  - `DiscordRequest()` - Wrapper for Discord API calls with authentication
-  - `InstallGlobalCommands()` - Bulk command registration using bulk overwrite endpoint
+**Bot:**
+- `POST /interactions` - Discord interaction handler (signature verified)
+- `GET /health` - Health check
 
-### Interaction Flow
+**API (require auth):**
+- `GET/POST /api/auth/*` - OAuth2 login/callback/me/logout
+- `GET /api/guilds` - List user's guilds (admin + bot present)
+- `GET /api/guilds/:id` - Guild details (channels, roles)
+- `GET/PATCH /api/guilds/:id/config` - Guild configuration
+- `GET/PATCH /api/guilds/:id/welcome` - Welcome message settings
+- `GET/PATCH /api/guilds/:id/logs` - Moderation log settings
 
-1. User executes `/ping` command → `APPLICATION_COMMAND` interaction
-2. Bot responds with "🏓 Pong!" message using Components v2
+**Dashboard:**
+- `GET /dashboard/*` - React SPA (static files)
 
 ### Key Patterns
 
-- **Components v2**: All responses must include `InteractionResponseFlags.IS_COMPONENTS_V2` and structure components as arrays with explicit `type` fields
-- **TEXT_DISPLAY component**: Used for simple text responses (`MessageComponentTypes.TEXT_DISPLAY`)
-- **Integration types & contexts**: Commands support different integration types (0=guild, 1=user) and contexts (0=guild, 1=DM, 2=group DM)
-- **Verification**: Discord sends `PING` interactions to verify the endpoint, respond with `PONG`
+- **Components v2**: Bot responses use `InteractionResponseFlags.IS_COMPONENTS_V2`
+- **Discord Gateway**: WebSocket connection for real-time events (member join/leave, message edit/delete, bans)
+- **Session auth**: HTTP-only cookies with MongoDB-backed sessions (7-day TTL)
+- **Guild admin check**: Verifies ADMINISTRATOR permission (bit 0x8) before allowing config changes
 
-### Discord API Integration
+### MongoDB Collections
 
-- All interactions must respond within 3 seconds
-- Interaction responses use `InteractionResponseType` constants
-- Follow-up actions use webhook endpoints: `webhooks/${APP_ID}/${token}/messages/${messageId}`
-- Commands support different integration types (guild, user) and contexts (guild, DM, group DM)
+- `guildconfigs` - Per-server settings (welcome, logs)
+- `sessions` - User sessions (TTL-indexed for auto-expiry)
 
 ## Deployment and Updates
 
+### Docker Services
+- `discord-app` - Main app (Express + React static files)
+- `mongodb` - MongoDB 7 with persistent volume
+- `cloudflared` - Cloudflare Tunnel
+
 ### Deployment Scripts
-
-- **deploy.ps1** (Windows PowerShell) - Automated deployment script
-- **deploy.sh** (Linux/Mac/WSL) - Automated deployment script
-
-Both scripts:
-- Create a compressed archive of the project (excluding node_modules, .git, logs)
-- Transfer via SSH to the NAS
-- Extract, rebuild Docker images, and restart containers
-- Show status and logs after deployment
-
-### Update Workflow
-
-When making code changes:
-1. Test locally with `npm start`
-2. Commit changes to git
-3. Deploy using `.\deploy.ps1 -Destination "user@nas-ip:/path"` (Windows) or `./deploy.sh user@nas-ip:/path` (Linux)
-4. Verify logs: `ssh user@nas-ip "cd /path && docker-compose logs -f"`
+- **deploy.ps1** (Windows PowerShell) - `.\deploy.ps1 -Destination "user@nas-ip:/path"`
 
 ### NAS Specifics
+On Synology NAS, docker-compose is located at `/usr/local/bin/docker-compose`.
 
-On Synology NAS, docker-compose is located at `/usr/local/bin/docker-compose` (not in standard PATH).
-
-### Documentation
-
-- **docs/DEPLOYMENT.md** - Complete deployment guide with Quick Start section, comprehensive updates guide, and detailed security analysis
-- **docs/UPDATE.md** - Quick reference for common update operations
-- **SECURITY.md** - Detailed security analysis and verification procedures
-- **README.md** - General project overview with deployment section
+### Prerequisites for Dashboard
+1. Get `CLIENT_SECRET` from Discord Developer Portal > OAuth2
+2. Add redirect URI `https://discord.teemate.gg/api/auth/callback` in Discord Developer Portal
+3. Enable Gateway Intents: Server Members Intent, Message Content Intent
 
 ## Examples Directory
 
-The `examples/` folder contains feature-specific code samples demonstrating:
-- Complete app.js with full game flow
-- Button components
-- Select menus
-- Modal forms
-- Command handling
-
-Refer to these when implementing new interaction patterns.
+The `examples/` folder contains feature-specific code samples from the Discord starter project.

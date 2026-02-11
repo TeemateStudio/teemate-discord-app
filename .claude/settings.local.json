@@ -4,7 +4,13 @@
       "Bash(Test-Path:*)",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File .deploy.ps1 -Destination \"macoupas@192.168.1.60:/volume1/docker/teemate-discord-app\")",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:discord.com)",
+      "WebSearch",
+      "WebFetch(domain:docs.discord.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm run build)",
+      "Bash(npm install:*)"
     ]
   }
 }
