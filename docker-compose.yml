@@ -24,11 +24,9 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: teemate-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
-    volumes:
-      - ./tunnel-config.yml:/etc/cloudflared/config.yml:ro
     networks:
       - teemate-network
     depends_on:

@@ -117,9 +117,19 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
 **What you get:**
 - 🐳 Docker containerization for easy deployment
 - 🔒 Cloudflare Tunnel for secure, zero-trust access (no port forwarding needed)
+- 🛡️ Your NAS never exposed to Internet - only outbound connections
 - 🔄 Auto-restart on failures
 - 📊 Health checks
 - 📝 Log management
+
+**Security:**
+- ✅ No ports open on your router (no port forwarding)
+- ✅ No direct exposure to Internet attacks
+- ✅ End-to-end TLS encryption
+- ✅ Docker isolation
+- ✅ Cloudflare DDoS protection
+
+For detailed security analysis, see [DEPLOYMENT.md - Security section](./docs/DEPLOYMENT.md#%EF%B8%8F-sécurité)
 
 ### Manual Docker deployment
 

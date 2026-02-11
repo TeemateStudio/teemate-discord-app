@@ -37,90 +37,84 @@ $parts = $Destination -split ":"
 $sshHost = $parts[0]
 $remotePath = $parts[1]
 
-# Creer une archive temporaire
-Write-Host "Creation de l'archive de deploiement..." -ForegroundColor Green
-$tempArchive = "deploy.tar.gz"
-
-# Utiliser tar (disponible sur Windows 10+)
-& tar -czf $tempArchive --exclude=node_modules --exclude=.git --exclude=*.log --exclude=logs --exclude=deploy.tar.gz --exclude=deploy.ps1 .
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Erreur lors de la creation de l'archive" -ForegroundColor Red
-    exit 1
-}
-
 # Creer le repertoire distant si necessaire
 Write-Host "Creation du repertoire distant..." -ForegroundColor Green
 & ssh $sshHost "mkdir -p $remotePath"
 
-# Transferer l'archive vers le NAS
-Write-Host "Transfert vers le NAS..." -ForegroundColor Green
+# Creer et transferer l'archive en streaming (methode la plus fiable)
+Write-Host "Creation et transfert de l'archive..." -ForegroundColor Green
 
-# Utiliser une methode compatible: creer un script temporaire et l'executer
-$transferScript = @"
-#!/bin/bash
-cd $remotePath
-cat > deploy.tar.gz
-"@
+# Utiliser tar en streaming directement vers SSH (evite fichier temporaire local)
+# Temporairement ignorer les erreurs pour tar
+$prevErrorAction = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 
-$transferScript | & ssh $sshHost "cat > /tmp/receive.sh && chmod +x /tmp/receive.sh && /tmp/receive.sh && rm /tmp/receive.sh" -ErrorAction SilentlyContinue
-Get-Content $tempArchive -Raw -Encoding Byte | & ssh $sshHost "cat > $remotePath/deploy.tar.gz"
+$excludes = "--exclude=node_modules --exclude=.git --exclude=*.log --exclude=logs --exclude=deploy.tar.gz --exclude=deploy.ps1"
+$tarCommand = "tar -czf - $excludes . | ssh $sshHost `"cat > $remotePath/deploy.tar.gz`""
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Echec du transfert. Essai avec une methode alternative..." -ForegroundColor Yellow
+# Executer via cmd pour que le pipe fonctionne correctement
+$null = cmd /c $tarCommand 2>$null
 
-    # Methode alternative: utiliser base64
-    $base64Content = [Convert]::ToBase64String([IO.File]::ReadAllBytes($tempArchive))
-    $base64Content | & ssh $sshHost "base64 -d > $remotePath/deploy.tar.gz"
+$ErrorActionPreference = $prevErrorAction
 
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Echec du transfert via SSH" -ForegroundColor Red
-        Remove-Item $tempArchive
-        exit 1
-    }
+# Verifier que l'archive a ete transferee
+$remoteSize = & ssh $sshHost "stat -c %s $remotePath/deploy.tar.gz 2>/dev/null || echo 0"
+if ([int]$remoteSize -eq 0) {
+    Write-Host "Erreur lors du transfert de l'archive" -ForegroundColor Red
+    exit 1
 }
 
-Write-Host "Transfert reussi" -ForegroundColor Green
+Write-Host "Archive transferee avec succes ($('{0:N2}' -f ([int]$remoteSize / 1MB)) MB)" -ForegroundColor Green
 
 # Deployer sur le NAS
 Write-Host "Deploiement sur le NAS..." -ForegroundColor Green
 
-$deployScript = @'
-cd {0}
-echo "Decompression de l'archive..."
-tar -xzf deploy.tar.gz
-rm deploy.tar.gz
-
-echo "Creation du dossier logs..."
-mkdir -p logs
-
-echo "Arret des conteneurs existants..."
-/usr/local/bin/docker-compose down 2>/dev/null || true
-
-echo "Construction des images..."
-/usr/local/bin/docker-compose build
-
-echo "Demarrage des conteneurs..."
-/usr/local/bin/docker-compose up -d
-
-echo "Verification du statut..."
-sleep 5
-/usr/local/bin/docker-compose ps
-
-echo "Logs recents:"
-/usr/local/bin/docker-compose logs --tail=20
-'@ -f $remotePath
-
-& ssh $sshHost $deployScript
-
+# Executer les commandes sequentiellement
+Write-Host "Decompression de l'archive..." -ForegroundColor Cyan
+& ssh $sshHost "cd $remotePath && tar -xzf deploy.tar.gz && rm deploy.tar.gz"
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Erreur lors du deploiement" -ForegroundColor Red
-    Remove-Item $tempArchive
+    Write-Host "Erreur lors de la decompression" -ForegroundColor Red
     exit 1
 }
 
-# Nettoyer l'archive locale
-Remove-Item $tempArchive
+Write-Host "Creation du dossier logs..." -ForegroundColor Cyan
+& ssh $sshHost "cd $remotePath && mkdir -p logs"
 
+Write-Host "Arret des conteneurs existants..." -ForegroundColor Cyan
+& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose down 2>/dev/null" | Out-Null
+
+Write-Host "Construction des images..." -ForegroundColor Cyan
+& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose build"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Erreur lors de la construction" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Demarrage des conteneurs..." -ForegroundColor Cyan
+& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose up -d"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Erreur lors du demarrage" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Attente du demarrage..." -ForegroundColor Cyan
+Start-Sleep -Seconds 5
+
+Write-Host "Verification du statut..." -ForegroundColor Cyan
+& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose ps"
+
+Write-Host ""
+Write-Host "Logs recents:" -ForegroundColor Cyan
+& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose logs --tail=20"
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Erreur lors du deploiement" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "================================================" -ForegroundColor Green
 Write-Host "Deploiement termine avec succes !" -ForegroundColor Green
+Write-Host "================================================" -ForegroundColor Green
+Write-Host ""
 Write-Host "Pour voir les logs: ssh $sshHost 'cd $remotePath && docker-compose logs -f'" -ForegroundColor Yellow

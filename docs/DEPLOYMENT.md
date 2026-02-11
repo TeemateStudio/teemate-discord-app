@@ -553,19 +553,135 @@ tar -czf - . | ssh macoupas@nas-ip "cat > /path/deploy.tar.gz"
 
 ## 🛡️ Sécurité
 
+### Architecture sécurisée
+
+Avec Cloudflare Tunnel, votre réseau local est protégé par une architecture zero-trust :
+
+```
+Discord API
+    ↓
+Cloudflare (protection DDoS, CDN)
+    ↓
+Tunnel TLS chiffré (connexion SORTANTE du NAS vers Cloudflare)
+    ↓
+Container cloudflared (sur votre NAS)
+    ↓
+Container discord-app (réseau Docker isolé)
+```
+
 ### Ce qui est protégé
 
 ✅ **Votre NAS n'est pas exposé directement sur Internet**
-Aucun port ouvert sur votre routeur, tout passe par Cloudflare Tunnel
+- Aucun port ouvert sur votre routeur
+- Pas de port forwarding nécessaire
+- Votre IP publique n'est jamais révélée à Discord ou aux attaquants
 
-✅ **Connexion chiffrée**
-Le tunnel Cloudflare utilise TLS pour chiffrer tout le trafic
+✅ **Connexion sortante uniquement**
+- Le container `cloudflared` **initie** la connexion vers Cloudflare (port 443/80 sortant)
+- Aucune connexion entrante depuis Internet vers votre NAS
+- Impossible d'attaquer directement votre réseau
 
-✅ **Protection DDoS**
-Cloudflare protège automatiquement contre les attaques DDoS
+✅ **Tunnel chiffré de bout en bout**
+- Le tunnel Cloudflare utilise TLS pour chiffrer tout le trafic
+- Même votre FAI ne peut pas voir le contenu des communications
+- Protection contre l'écoute et l'interception
 
-✅ **Pas besoin de configuration complexe du routeur**
-Pas de port forwarding, NAT traversal géré automatiquement
+✅ **Isolation Docker**
+- Le bot tourne dans un container isolé
+- Ne peut pas accéder directement aux autres machines de votre réseau local
+- Limite les dégâts en cas de compromission du bot
+
+✅ **Protection DDoS de Cloudflare**
+- Cloudflare absorbe et filtre les attaques DDoS avant qu'elles n'atteignent votre réseau
+- Rate limiting disponible
+- Web Application Firewall (WAF) optionnel
+
+✅ **Pas de configuration complexe du routeur**
+- Pas de port forwarding
+- NAT traversal géré automatiquement
+- Fonctionne derrière n'importe quel type de réseau (NAT, CGNAT, etc.)
+
+### Vérification de sécurité
+
+#### Vérifier que le port 3000 n'est PAS accessible depuis Internet
+
+Le port 3000 écoute sur votre NAS (visible avec `netstat`), mais il **ne doit PAS** être accessible depuis Internet.
+
+**IMPORTANT** : Vérifiez votre routeur/box Internet :
+- ✅ **Aucun port forwarding** configuré pour le port 3000
+- ✅ **Aucune règle NAT** vers votre NAS sur ce port
+
+Si vous avez un ancien port forwarding pour un serveur web/bot :
+```
+⚠️ SUPPRIMEZ-LE - Il n'est plus nécessaire et crée une faille de sécurité
+```
+
+#### Test de pénétration externe (optionnel)
+
+Pour vérifier que votre port n'est pas accessible depuis Internet :
+
+```bash
+# Depuis un autre réseau (4G, VPN, chez un ami)
+# Remplacez VOTRE_IP_PUBLIQUE par votre vraie IP publique
+curl -I http://VOTRE_IP_PUBLIQUE:3000 --max-time 5
+
+# Résultats attendus (= bien protégé) :
+# - "Connection timed out" ✓
+# - "Connection refused" ✓
+# - "No route to host" ✓
+
+# Résultat NON désiré (= problème de sécurité) :
+# - "HTTP/1.1 200 OK" ❌
+# → Si vous obtenez une réponse, votre port est ouvert !
+```
+
+#### Tableau de bord de sécurité
+
+| Protection | État | Comment vérifier |
+|-----------|------|------------------|
+| Port forwarding désactivé | ✅ | Interface de votre box/routeur |
+| Tunnel chiffré actif | ✅ | `docker-compose logs cloudflared` → "Registered tunnel connection" |
+| IP publique cachée | ✅ | Discord ne voit que Cloudflare (pas votre IP) |
+| Isolation Docker | ✅ | `docker network ls` → réseau bridge isolé |
+| DDoS Protection | ✅ | Activé automatiquement par Cloudflare |
+| 2FA activé | ⚠️ | Cloudflare Dashboard → Paramètres du compte |
+
+### Vecteurs d'attaque restants
+
+Même avec cette architecture sécurisée, restez vigilant :
+
+#### 1. Vulnérabilités dans le code du bot
+**Risque** : Si le bot a des bugs de sécurité (injection, RCE, etc.)
+
+**Mitigation** :
+- Le bot est isolé dans un container Docker (limite les dégâts)
+- Mettez à jour régulièrement les dépendances : `npm audit`
+- Revoyez le code avant de déployer des changements
+
+#### 2. Credentials compromis
+**Risque** : Si `DISCORD_TOKEN` ou `TUNNEL_TOKEN` sont volés
+
+**Mitigation** :
+- Ne commitez JAMAIS le fichier `.env` dans git
+- Activez 2FA sur Cloudflare et Discord
+- Régénérez les tokens périodiquement
+- Limitez les permissions du bot Discord au strict nécessaire
+
+#### 3. Attaque de la chaîne d'approvisionnement
+**Risque** : Dépendances npm malveillantes
+
+**Mitigation** :
+- Auditez les dépendances : `npm audit`
+- Vérifiez les changements dans `package-lock.json`
+- Utilisez des images Docker officielles (node:20-alpine)
+
+#### 4. Accès physique au NAS
+**Risque** : Quelqu'un accède physiquement à votre NAS
+
+**Mitigation** :
+- Chiffrez les disques du NAS si possible
+- Protégez l'accès physique au NAS
+- Activez les logs d'accès SSH
 
 ### Bonnes pratiques
 

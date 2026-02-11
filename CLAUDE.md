@@ -116,8 +116,9 @@ On Synology NAS, docker-compose is located at `/usr/local/bin/docker-compose` (n
 
 ### Documentation
 
-- **DEPLOYMENT.md** - Complete deployment guide with Quick Start section and comprehensive updates guide
-- **UPDATE.md** - Quick reference for common update operations
+- **docs/DEPLOYMENT.md** - Complete deployment guide with Quick Start section, comprehensive updates guide, and detailed security analysis
+- **docs/UPDATE.md** - Quick reference for common update operations
+- **SECURITY.md** - Detailed security analysis and verification procedures
 - **README.md** - General project overview with deployment section
 
 ## Examples Directory
