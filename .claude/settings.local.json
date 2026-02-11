@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Test-Path:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File .deploy.ps1 -Destination \"macoupas@192.168.1.60:/volume1/docker/teemate-discord-app\")"
+    ]
+  }
+}

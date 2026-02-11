@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  discord-app:
+    build: .
+    container_name: teemate-discord-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    networks:
+      - teemate-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: teemate-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    volumes:
+      - ./tunnel-config.yml:/etc/cloudflared/config.yml:ro
+    networks:
+      - teemate-network
+    depends_on:
+      discord-app:
+        condition: service_healthy
+
+networks:
+  teemate-network:
+    driver: bridge

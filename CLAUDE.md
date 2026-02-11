@@ -89,6 +89,37 @@ Configure the ngrok HTTPS URL + `/interactions` as the Interactions Endpoint URL
 - Follow-up actions use webhook endpoints: `webhooks/${APP_ID}/${token}/messages/${messageId}`
 - Commands support different integration types (guild, user) and contexts (guild, DM, group DM)
 
+## Deployment and Updates
+
+### Deployment Scripts
+
+- **deploy.ps1** (Windows PowerShell) - Automated deployment script
+- **deploy.sh** (Linux/Mac/WSL) - Automated deployment script
+
+Both scripts:
+- Create a compressed archive of the project (excluding node_modules, .git, logs)
+- Transfer via SSH to the NAS
+- Extract, rebuild Docker images, and restart containers
+- Show status and logs after deployment
+
+### Update Workflow
+
+When making code changes:
+1. Test locally with `npm start`
+2. Commit changes to git
+3. Deploy using `.\deploy.ps1 -Destination "user@nas-ip:/path"` (Windows) or `./deploy.sh user@nas-ip:/path` (Linux)
+4. Verify logs: `ssh user@nas-ip "cd /path && docker-compose logs -f"`
+
+### NAS Specifics
+
+On Synology NAS, docker-compose is located at `/usr/local/bin/docker-compose` (not in standard PATH).
+
+### Documentation
+
+- **DEPLOYMENT.md** - Complete deployment guide with Quick Start section and comprehensive updates guide
+- **UPDATE.md** - Quick reference for common update operations
+- **README.md** - General project overview with deployment section
+
 ## Examples Directory
 
 The `examples/` folder contains feature-specific code samples demonstrating:

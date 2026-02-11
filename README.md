@@ -101,6 +101,66 @@ On the **General Information** tab, there will be an **Interactions Endpoint URL
 
 Click **Save Changes**, and your app should be ready to run 🚀
 
+## Deploying with Docker and Cloudflare Tunnel
+
+For production deployment on a NAS or server with Docker, this project includes a complete Docker setup with Cloudflare Tunnel integration for secure access.
+
+### Quick Deploy
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+
+**Quick steps:**
+1. Set up Cloudflare Tunnel and get your `TUNNEL_TOKEN`
+2. Copy `.env.example` to `.env` and fill in your credentials
+3. Deploy using the PowerShell script: `.\deploy.ps1 -Destination "user@nas-ip:/path/to/bot"`
+
+**What you get:**
+- 🐳 Docker containerization for easy deployment
+- 🔒 Cloudflare Tunnel for secure, zero-trust access (no port forwarding needed)
+- 🔄 Auto-restart on failures
+- 📊 Health checks
+- 📝 Log management
+
+### Manual Docker deployment
+
+```bash
+# Copy and configure environment
+cp .env.example .env
+# Edit .env with your values
+
+# Build and start
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+### Updating your deployment
+
+After making code changes, redeploy using the deployment script:
+
+**Windows:**
+```powershell
+.\deploy.ps1 -Destination "user@nas-ip:/path/to/bot"
+```
+
+**Linux/Mac:**
+```bash
+./deploy.sh user@nas-ip:/path/to/bot
+```
+
+The script automatically:
+- ✅ Archives your code (excludes node_modules, .git, logs)
+- 📤 Transfers to your NAS via SSH
+- 🔧 Extracts and rebuilds Docker images
+- 🚀 Restarts containers with zero downtime
+- 📊 Shows status and recent logs
+
+**For detailed update workflows, see the [deployment guide](./DEPLOYMENT.md#-mise-à-jour-de-lapplication)**
+
 ## Other resources
 - Read **[the documentation](https://discord.com/developers/docs/intro)** for in-depth information about API features.
 - Browse the `examples/` folder in this project for smaller, feature-specific code examples
