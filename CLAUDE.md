@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Discord bot application built with Express.js that implements an interactive rock-paper-scissors-style game using Discord's slash commands and message components. It uses Discord's Components v2 API with the `discord-interactions` package.
+This is a minimal Discord bot application built with Express.js. It implements a simple `/ping` slash command to demonstrate Discord's interactions API. It uses Discord's Components v2 API with the `discord-interactions` package.
 
 ## Environment Setup
 
@@ -47,40 +47,29 @@ Configure the ngrok HTTPS URL + `/interactions` as the Interactions Endpoint URL
 - **app.js** - Main Express server and interaction handler
   - Single POST endpoint `/interactions` that handles all Discord interactions
   - Uses `verifyKeyMiddleware` to verify request signatures from Discord
-  - Handles `PING` (verification), `APPLICATION_COMMAND` (slash commands), and `MESSAGE_COMPONENT` (button/select interactions)
-  - Manages `activeGames` object as in-memory state (should use database in production)
+  - Handles `PING` (verification) and `APPLICATION_COMMAND` (slash commands)
+  - `/health` endpoint for Docker healthcheck
 
 - **commands.js** - Command definitions and registration script
   - Exports `ALL_COMMANDS` array with slash command payloads
   - When executed directly (`npm run register`), installs commands globally via Discord API
   - Uses `InstallGlobalCommands` utility to bulk overwrite commands
 
-- **game.js** - Game logic and choices
-  - Defines `RPSChoices` object mapping game objects to their win conditions and verbs
-  - `getResult()` - Determines winner between two players and formats result message
-  - `getShuffledOptions()` - Returns randomized options for select menus
-
 - **utils.js** - Discord API helpers
   - `DiscordRequest()` - Wrapper for Discord API calls with authentication
-  - `InstallGlobalCommands()` - Bulk command registration
-  - Helper functions: `getRandomEmoji()`, `capitalize()`
+  - `InstallGlobalCommands()` - Bulk command registration using bulk overwrite endpoint
 
 ### Interaction Flow
 
-1. User executes slash command → `APPLICATION_COMMAND` interaction
-2. Bot responds with button component → stores game state in `activeGames[interactionId]`
-3. Another user clicks button → `MESSAGE_COMPONENT` interaction
-4. Bot responds with ephemeral select menu
-5. User selects choice → `MESSAGE_COMPONENT` interaction
-6. Bot calculates result, deletes game state, posts winner message
+1. User executes `/ping` command → `APPLICATION_COMMAND` interaction
+2. Bot responds with "🏓 Pong!" message using Components v2
 
 ### Key Patterns
 
 - **Components v2**: All responses must include `InteractionResponseFlags.IS_COMPONENTS_V2` and structure components as arrays with explicit `type` fields
-- **Context-aware user IDs**: User ID is in `req.body.member.user.id` for guild contexts (context=0) and `req.body.user.id` for DMs (context=1,2)
-- **Custom IDs**: Component custom_ids encode game state (e.g., `accept_button_${gameId}`, `select_choice_${gameId}`)
-- **Ephemeral messages**: Use `InteractionResponseFlags.EPHEMERAL` for private responses
-- **Message updates**: Use webhook endpoints to update or delete messages after initial response
+- **TEXT_DISPLAY component**: Used for simple text responses (`MessageComponentTypes.TEXT_DISPLAY`)
+- **Integration types & contexts**: Commands support different integration types (0=guild, 1=user) and contexts (0=guild, 1=DM, 2=group DM)
+- **Verification**: Discord sends `PING` interactions to verify the endpoint, respond with `PONG`
 
 ### Discord API Integration
 

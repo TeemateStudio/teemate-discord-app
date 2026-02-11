@@ -1,24 +1,24 @@
-# Getting Started app for Discord
+# Minimal Discord Bot
 
-This project contains a basic rock-paper-scissors-style Discord app written in JavaScript, built for the [getting started guide](https://discord.com/developers/docs/getting-started).
-
-![Demo of app](https://github.com/discord/discord-example-app/raw/main/assets/getting-started-demo.gif?raw=true)
+A minimal Discord bot application built with Express.js and deployed on NAS using Docker and Cloudflare Tunnel. Features a simple `/ping` command to demonstrate Discord's interactions API.
 
 ## Project structure
 Below is a basic overview of the project structure:
 
 ```
-├── examples    -> short, feature-specific sample apps
-│   ├── app.js  -> finished app.js code
-│   ├── button.js
-│   ├── command.js
-│   ├── modal.js
-│   ├── selectMenu.js
-├── .env.sample -> sample .env file
-├── app.js      -> main entrypoint for app
-├── commands.js -> slash command payloads + helpers
-├── game.js     -> logic specific to RPS
-├── utils.js    -> utility functions and enums
+├── docs/               -> documentation files
+│   ├── DEPLOYMENT.md   -> complete deployment guide
+│   └── UPDATE.md       -> quick update reference
+├── .env.sample         -> sample .env file
+├── app.js              -> main entrypoint for app
+├── commands.js         -> slash command definitions
+├── utils.js            -> Discord API helpers
+├── Dockerfile          -> Docker image configuration
+├── docker-compose.yml  -> Docker services configuration
+├── deploy.ps1          -> Windows deployment script
+├── deploy.sh           -> Linux/Mac deployment script
+├── SECURITY.md         -> security analysis
+├── CLAUDE.md           -> project instructions for Claude Code
 ├── package.json
 ├── README.md
 └── .gitignore
