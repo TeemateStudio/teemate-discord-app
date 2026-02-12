@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import EmbedEditor from '../components/EmbedEditor.jsx';
+import EmbedPreview from '../components/EmbedPreview.jsx';
 
 function intToHex(color) {
   if (color == null) return '#5865F2';
@@ -128,30 +129,37 @@ export default function Embeds() {
       <div>
         <div className="page-header">
           <h1 className="page-title">
-            {editing === 'new' ? 'New Embed' : `Edit: ${editing.name}`}
+            {editing === 'new' ? 'Nouvel Embed' : `Modifier : ${editing.name}`}
           </h1>
           <p className="page-description">
-            Build a Discord embed and send it to any channel.
+            Construisez un embed Discord et envoyez-le dans n'importe quel canal.
           </p>
         </div>
 
         {error && <div className="ee-error">{error}</div>}
 
-        <EmbedEditor
-          name={name}
-          data={data}
-          channelId={channelId}
-          channels={channels}
-          onNameChange={setName}
-          onDataChange={setData}
-          onChannelChange={setChannelId}
-          onSave={handleSave}
-          onCancel={closeEditor}
-          onSend={handleSend}
-          saving={saving}
-          sending={sending}
-          isNew={editing === 'new'}
-        />
+        <div className="embed-split-layout">
+          <div className="embed-split-editor">
+            <EmbedEditor
+              name={name}
+              data={data}
+              channelId={channelId}
+              channels={channels}
+              onNameChange={setName}
+              onDataChange={setData}
+              onChannelChange={setChannelId}
+              onSave={handleSave}
+              onCancel={closeEditor}
+              onSend={handleSend}
+              saving={saving}
+              sending={sending}
+              isNew={editing === 'new'}
+            />
+          </div>
+          <div className="embed-split-preview">
+            <EmbedPreview data={data} />
+          </div>
+        </div>
       </div>
     );
   }
