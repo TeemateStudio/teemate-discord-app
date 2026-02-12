@@ -1,0 +1,8 @@
+## Local dev overrides (auto-loaded by docker compose)
+## Exposes MongoDB on localhost:27017 for local development
+version: '3.8'
+
+services:
+  mongodb:
+    ports:
+      - "27017:27017"

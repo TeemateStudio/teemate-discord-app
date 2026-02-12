@@ -711,6 +711,764 @@ a:hover {
   to { transform: rotate(360deg); }
 }
 
+/* ── Embed Preview (Discord-style) ── */
+.ep-container {
+  background: #2f3136;
+  border-left: 4px solid var(--ep-color, #5865F2);
+  border-radius: 4px;
+  padding: 12px 16px 12px 12px;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ep-body {
+  display: flex;
+  gap: 16px;
+}
+
+.ep-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ep-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ep-author-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.ep-author-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+a.ep-author-name:hover {
+  text-decoration: underline;
+}
+
+.ep-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.ep-title a {
+  color: #00aff4;
+}
+
+.ep-title a:hover {
+  text-decoration: underline;
+}
+
+.ep-description {
+  font-size: 14px;
+  color: #dcddde;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 8px;
+}
+
+.ep-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ep-field {
+  grid-column: span 3;
+}
+
+.ep-field.ep-field-inline {
+  grid-column: span 1;
+}
+
+.ep-field-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.ep-field-value {
+  font-size: 14px;
+  color: #dcddde;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ep-image {
+  max-width: 100%;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.ep-thumbnail {
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.ep-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #a3a6aa;
+}
+
+.ep-footer-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* ── Visual Embed Editor (WYSIWYG) ── */
+.ve-root {
+  max-width: 720px;
+}
+
+.ve-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.ve-name-input {
+  flex: 1;
+  min-width: 160px;
+  padding: 9px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.ve-name-input:focus {
+  border-color: var(--primary);
+}
+
+.ve-name-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.ve-topbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ve-topbar-right .form-select {
+  width: 200px;
+}
+
+/* Color swatches */
+.ve-colors {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ve-colors-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ve-swatches {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ve-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 100ms ease, border-color 100ms ease;
+  padding: 0;
+  position: relative;
+  outline: none;
+}
+
+.ve-swatch:hover {
+  transform: scale(1.15);
+}
+
+.ve-swatch-active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
+}
+
+.ve-swatch-custom {
+  background: conic-gradient(#ED4245, #FEE75C, #57F287, #1ABC9C, #5865F2, #9B59B6, #EB459E, #ED4245);
+  overflow: hidden;
+}
+
+.ve-swatch-custom input[type="color"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+}
+
+/* Embed body - the visual editor that looks like a Discord embed */
+.ve-embed {
+  background: #2b2d31;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.ve-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--ve-color, #5865f2);
+  border-radius: 4px 0 0 4px;
+}
+
+.ve-body {
+  display: flex;
+  gap: 16px;
+  padding: 16px 16px 8px 20px;
+}
+
+.ve-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Inline inputs inside the embed */
+.ve-inline-input {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #dcddde;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 150ms ease, background 150ms ease;
+  width: 100%;
+}
+
+.ve-inline-input:focus {
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.3);
+}
+
+.ve-inline-input::placeholder {
+  color: rgba(255,255,255,0.2);
+}
+
+.ve-inline-input-secondary {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* Subtle URL fields */
+.ve-subtle-url {
+  background: none;
+  border: none;
+  border-bottom: 1px dashed rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 2px 10px 4px 20px;
+  outline: none;
+  width: 100%;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+.ve-subtle-url:focus {
+  color: rgba(255,255,255,0.5);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.ve-subtle-url::placeholder {
+  color: rgba(255,255,255,0.12);
+}
+
+.ve-subtle-url-footer {
+  padding-left: 20px;
+  padding-bottom: 10px;
+}
+
+/* Author row */
+.ve-author-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ve-author-row .ve-inline-input {
+  flex: 1;
+}
+
+.ve-author-row .ve-inline-input-secondary {
+  flex: 0 1 140px;
+}
+
+/* Avatar placeholder */
+.ve-avatar-placeholder {
+  border: 2px dashed rgba(255,255,255,0.12);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+
+.ve-avatar-img {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Title */
+.ve-title-input {
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 8px 10px;
+  outline: none;
+  width: 100%;
+  transition: border-color 150ms ease;
+}
+
+.ve-title-input:focus {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.ve-title-input::placeholder {
+  color: rgba(255,255,255,0.15);
+  font-weight: 400;
+}
+
+/* Description */
+.ve-desc-input {
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #dcddde;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 8px 10px;
+  outline: none;
+  width: 100%;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 150ms ease;
+}
+
+.ve-desc-input:focus {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.ve-desc-input::placeholder {
+  color: rgba(255,255,255,0.15);
+}
+
+/* Add field button */
+.ve-add-field-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 150ms ease;
+  align-self: center;
+  margin: 4px 0;
+}
+
+.ve-add-field-btn:hover {
+  background: var(--primary-hover);
+}
+
+/* Field cards */
+.ve-field-card {
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.ve-field-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ve-field-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ve-field-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.ve-field-controls button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  transition: color 100ms ease, background 100ms ease;
+}
+
+.ve-field-controls button:hover:not(:disabled) {
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.06);
+}
+
+.ve-field-controls button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.ve-field-remove:hover:not(:disabled) {
+  color: var(--danger) !important;
+}
+
+.ve-field-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ve-field-value {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #dcddde;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 6px 10px;
+  outline: none;
+  width: 100%;
+  resize: vertical;
+  min-height: 40px;
+  transition: border-color 150ms ease;
+}
+
+.ve-field-value:focus {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.ve-field-value::placeholder {
+  color: rgba(255,255,255,0.15);
+}
+
+.ve-field-inline-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+}
+
+.ve-field-inline-check input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+/* Image zones */
+.ve-img-drop {
+  border: 2px dashed rgba(255,255,255,0.1);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.18);
+  transition: border-color 150ms ease;
+  padding: 16px;
+}
+
+.ve-img-drop:hover {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.ve-img-url-input {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #dcddde;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 5px 8px;
+  outline: none;
+  width: 80%;
+  max-width: 200px;
+  text-align: center;
+  transition: border-color 150ms ease;
+}
+
+.ve-img-url-input:focus {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.ve-img-url-input::placeholder {
+  color: rgba(255,255,255,0.15);
+}
+
+.ve-img-filled {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ve-img-filled img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.ve-img-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.ve-img-filled:hover .ve-img-remove {
+  opacity: 1;
+}
+
+.ve-image-zone {
+  min-height: 80px;
+}
+
+.ve-thumb-col {
+  flex-shrink: 0;
+  width: 80px;
+}
+
+.ve-thumb-zone {
+  width: 80px;
+  height: 80px;
+}
+
+.ve-thumb-zone.ve-img-drop {
+  padding: 8px;
+  gap: 4px;
+}
+
+.ve-thumb-zone .ve-img-url-input {
+  width: 100%;
+  max-width: none;
+  font-size: 9px;
+  padding: 3px 4px;
+}
+
+.ve-thumb-zone svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Footer row */
+.ve-footer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 8px 20px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.ve-footer-row .ve-inline-input {
+  flex: 1;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.ve-ts-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ve-ts-check input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+/* Bottom actions */
+.ve-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+}
+
+.ve-actions-right {
+  display: flex;
+  gap: 8px;
+}
+
+.ve-char-count {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.ve-char-over {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Error message (used by Embeds page) */
+.ee-error {
+  background: rgba(237, 66, 69, 0.1);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* ── Embeds List Grid ── */
+.embeds-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.embed-card {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+
+.embed-card:hover {
+  border-color: var(--text-muted);
+}
+
+.embed-card-color {
+  width: 4px;
+  align-self: stretch;
+  background: var(--embed-color, var(--primary));
+  flex-shrink: 0;
+}
+
+.embed-card-body {
+  flex: 1;
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.embed-card-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.embed-card-desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.embed-card-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.embed-card-actions {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {
@@ -730,5 +1488,29 @@ a:hover {
   }
   .save-bar {
     left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .ve-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ve-topbar-right {
+    flex-wrap: wrap;
+  }
+  .ve-topbar-right .form-select {
+    width: 100%;
+  }
+  .ve-body {
+    flex-direction: column;
+  }
+  .ve-thumb-col {
+    width: 100%;
+  }
+  .ve-thumb-zone {
+    width: 100%;
+    height: auto;
+    min-height: 60px;
   }
 }

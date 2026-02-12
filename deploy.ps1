@@ -1,5 +1,6 @@
 # Script de deploiement sur NAS (PowerShell)
 # Usage: .\deploy.ps1 -Destination "user@nas-ip:/path/to/discord-app"
+# Mot de passe demande 2 fois max : 1x transfert, 1x deploiement
 
 param(
     [Parameter(Mandatory=$true)]
@@ -37,75 +38,66 @@ $parts = $Destination -split ":"
 $sshHost = $parts[0]
 $remotePath = $parts[1]
 
-# Creer le repertoire distant si necessaire
-Write-Host "Creation du repertoire distant..." -ForegroundColor Green
-& ssh $sshHost "mkdir -p $remotePath"
+# --- Etape 1 : Creer le repertoire distant + transferer l'archive (1 mot de passe) ---
+Write-Host "Creation du repertoire distant + transfert de l'archive..." -ForegroundColor Green
+Write-Host "(mot de passe 1/2)" -ForegroundColor Yellow
 
-# Creer et transferer l'archive en streaming (methode la plus fiable)
-Write-Host "Creation et transfert de l'archive..." -ForegroundColor Green
-
-# Utiliser tar en streaming directement vers SSH (evite fichier temporaire local)
-# Temporairement ignorer les erreurs pour tar
 $prevErrorAction = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 
 $excludes = "--exclude=node_modules --exclude=.git --exclude=*.log --exclude=logs --exclude=deploy.tar.gz --exclude=deploy.ps1 --exclude=dashboard/node_modules --exclude=dashboard/.vite"
-$tarCommand = "tar -czf - $excludes . | ssh $sshHost `"cat > $remotePath/deploy.tar.gz`""
+$tarCommand = "tar -czf - $excludes . | ssh $sshHost `"mkdir -p $remotePath && cat > $remotePath/deploy.tar.gz`""
 
-# Executer via cmd pour que le pipe fonctionne correctement
 $null = cmd /c $tarCommand 2>$null
 
 $ErrorActionPreference = $prevErrorAction
 
-# Verifier que l'archive a ete transferee
-$remoteSize = & ssh $sshHost "stat -c %s $remotePath/deploy.tar.gz 2>/dev/null || echo 0"
-if ([int]$remoteSize -eq 0) {
-    Write-Host "Erreur lors du transfert de l'archive" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "Archive transferee avec succes ($('{0:N2}' -f ([int]$remoteSize / 1MB)) MB)" -ForegroundColor Green
-
-# Deployer sur le NAS
+# --- Etape 2 : Deployer sur le NAS en une seule session SSH (1 mot de passe) ---
 Write-Host "Deploiement sur le NAS..." -ForegroundColor Green
+Write-Host "(mot de passe 2/2)" -ForegroundColor Yellow
 
-# Executer les commandes sequentiellement
-Write-Host "Decompression de l'archive..." -ForegroundColor Cyan
-& ssh $sshHost "cd $remotePath && tar -xzf deploy.tar.gz && rm deploy.tar.gz"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Erreur lors de la decompression" -ForegroundColor Red
+# Toutes les commandes de deploiement en une seule connexion SSH
+$deployScript = @"
+set -e
+cd $remotePath
+
+# Verifier l'archive
+ARCHIVE_SIZE=`$(stat -c %s deploy.tar.gz 2>/dev/null || echo 0)
+if [ "`$ARCHIVE_SIZE" -eq 0 ]; then
+    echo "ERREUR: Archive vide ou manquante"
     exit 1
-}
+fi
+echo "Archive recue: `$((`$ARCHIVE_SIZE / 1024)) KB"
 
-Write-Host "Creation du dossier logs..." -ForegroundColor Cyan
-& ssh $sshHost "cd $remotePath && mkdir -p logs"
+# Extraire et nettoyer
+echo "--- Decompression ---"
+tar -xzf deploy.tar.gz && rm deploy.tar.gz
 
-Write-Host "Arret des conteneurs existants..." -ForegroundColor Cyan
-& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose down 2>/dev/null" | Out-Null
+# Preparer
+mkdir -p logs
 
-Write-Host "Construction des images..." -ForegroundColor Cyan
-& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose build"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Erreur lors de la construction" -ForegroundColor Red
-    exit 1
-}
+# Docker
+echo "--- Arret des conteneurs ---"
+/usr/local/bin/docker-compose down 2>/dev/null || true
 
-Write-Host "Demarrage des conteneurs..." -ForegroundColor Cyan
-& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose up -d"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Erreur lors du demarrage" -ForegroundColor Red
-    exit 1
-}
+echo "--- Construction des images ---"
+/usr/local/bin/docker-compose build
 
-Write-Host "Attente du demarrage..." -ForegroundColor Cyan
-Start-Sleep -Seconds 5
+echo "--- Demarrage des conteneurs ---"
+/usr/local/bin/docker-compose up -d
 
-Write-Host "Verification du statut..." -ForegroundColor Cyan
-& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose ps"
+echo "--- Attente du demarrage (5s) ---"
+sleep 5
 
-Write-Host ""
-Write-Host "Logs recents:" -ForegroundColor Cyan
-& ssh $sshHost "cd $remotePath && /usr/local/bin/docker-compose logs --tail=20"
+echo "--- Statut ---"
+/usr/local/bin/docker-compose ps
+
+echo "--- Logs recents ---"
+/usr/local/bin/docker-compose logs --tail=20
+"@
+
+# Executer tout en une seule session SSH
+$deployScript | & ssh $sshHost "bash -s"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Erreur lors du deploiement" -ForegroundColor Red
@@ -118,3 +110,7 @@ Write-Host "Deploiement termine avec succes !" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Pour voir les logs: ssh $sshHost 'cd $remotePath && docker-compose logs -f'" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Astuce: Pour ne plus jamais taper le mot de passe :" -ForegroundColor DarkGray
+Write-Host "  ssh-keygen -t ed25519" -ForegroundColor DarkGray
+Write-Host "  type `$env:USERPROFILE\.ssh\id_ed25519.pub | ssh $sshHost `"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys`"" -ForegroundColor DarkGray

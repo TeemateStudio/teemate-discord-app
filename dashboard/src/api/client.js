@@ -41,4 +41,11 @@ export const api = {
   // Logs
   getLogs: (id) => request(`/guilds/${id}/logs`),
   updateLogs: (id, data) => request(`/guilds/${id}/logs`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Embeds
+  getEmbeds: (id) => request(`/guilds/${id}/embeds`),
+  createEmbed: (id, data) => request(`/guilds/${id}/embeds`, { method: 'POST', body: JSON.stringify(data) }),
+  updateEmbed: (id, embedId, data) => request(`/guilds/${id}/embeds/${embedId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteEmbed: (id, embedId) => request(`/guilds/${id}/embeds/${embedId}`, { method: 'DELETE' }),
+  sendEmbed: (id, embedId, channelId) => request(`/guilds/${id}/embeds/${embedId}/send`, { method: 'POST', body: JSON.stringify({ channelId }) }),
 };

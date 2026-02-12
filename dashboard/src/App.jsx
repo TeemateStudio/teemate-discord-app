@@ -6,6 +6,7 @@ import ServerList from './pages/ServerList.jsx';
 import Overview from './pages/Overview.jsx';
 import Welcome from './pages/Welcome.jsx';
 import Logs from './pages/Logs.jsx';
+import Embeds from './pages/Embeds.jsx';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
             <Route index element={<Overview />} />
             <Route path="welcome" element={<Welcome />} />
             <Route path="logs" element={<Logs />} />
+            <Route path="embeds" element={<Embeds />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
