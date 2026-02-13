@@ -45,10 +45,25 @@ jobs:
           rm cloudflared.deb
           cloudflared --version
 
+      - name: Start SSH tunnel
+        env:
+          NAS_SSH_HOSTNAME: ${{ secrets.NAS_SSH_HOSTNAME }}
+        run: |
+          cloudflared access tcp --hostname "$NAS_SSH_HOSTNAME" --url localhost:2222 --log-level debug &
+          CLOUDFLARED_PID=$!
+          echo "CLOUDFLARED_PID=$CLOUDFLARED_PID" >> $GITHUB_ENV
+          echo "Waiting for tunnel to establish..."
+          sleep 5
+          # Verify cloudflared is still running
+          if ! kill -0 $CLOUDFLARED_PID 2>/dev/null; then
+            echo "ERROR: cloudflared exited prematurely"
+            exit 1
+          fi
+          echo "Tunnel proxy running on localhost:2222 (PID $CLOUDFLARED_PID)"
+
       - name: Configure SSH
         env:
           NAS_SSH_KEY: ${{ secrets.NAS_SSH_KEY }}
-          NAS_SSH_HOSTNAME: ${{ secrets.NAS_SSH_HOSTNAME }}
           NAS_USER: ${{ secrets.NAS_USER }}
         run: |
           mkdir -p ~/.ssh
@@ -57,24 +72,17 @@ jobs:
 
           cat > ~/.ssh/config << EOF
           Host nas-deploy
-            HostName $NAS_SSH_HOSTNAME
+            HostName localhost
+            Port 2222
             User $NAS_USER
             IdentityFile ~/.ssh/deploy_key
-            ProxyCommand cloudflared access ssh --hostname %h
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
           EOF
           chmod 600 ~/.ssh/config
 
-      - name: Debug SSH connection
-        env:
-          NAS_SSH_HOSTNAME: ${{ secrets.NAS_SSH_HOSTNAME }}
-        run: |
-          echo "Hostname: $NAS_SSH_HOSTNAME"
-          nslookup "$NAS_SSH_HOSTNAME" || true
-          cloudflared access ssh --hostname "$NAS_SSH_HOSTNAME" --help || true
-          cat ~/.ssh/config
-          ssh -vvv nas-deploy echo "SSH OK" 2>&1 | head -50 || true
+      - name: Test SSH connection
+        run: ssh nas-deploy echo "SSH connection OK"
 
       - name: Transfer archive to NAS
         env:
@@ -146,6 +154,8 @@ jobs:
           exit 1
           DEPLOY_SCRIPT
 
-      - name: Cleanup SSH key
+      - name: Cleanup
         if: always()
-        run: rm -f ~/.ssh/deploy_key ~/.ssh/config
+        run: |
+          rm -f ~/.ssh/deploy_key ~/.ssh/config
+          kill $CLOUDFLARED_PID 2>/dev/null || true
