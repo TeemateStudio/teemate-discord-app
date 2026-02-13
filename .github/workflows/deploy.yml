@@ -48,8 +48,10 @@ jobs:
       - name: Start SSH tunnel
         env:
           NAS_SSH_HOSTNAME: ${{ secrets.NAS_SSH_HOSTNAME }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
-          cloudflared access tcp --hostname "$NAS_SSH_HOSTNAME" --url localhost:2222 --log-level debug &
+          cloudflared access tcp --hostname "$NAS_SSH_HOSTNAME" --url localhost:2222 --id "$CF_ACCESS_CLIENT_ID" --secret "$CF_ACCESS_CLIENT_SECRET" --log-level debug &
           CLOUDFLARED_PID=$!
           echo "CLOUDFLARED_PID=$CLOUDFLARED_PID" >> $GITHUB_ENV
           echo "Waiting for tunnel to establish..."
