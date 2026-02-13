@@ -1,0 +1,139 @@
+name: Deploy to NAS
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/claude*.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-nas
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create deployment archive
+        run: |
+          tar -czf deploy.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=logs \
+            --exclude='*.log' \
+            --exclude=deploy.tar.gz \
+            --exclude=deploy.ps1 \
+            --exclude=dashboard/node_modules \
+            --exclude='dashboard/.vite' \
+            --exclude=.env \
+            --exclude='.env.*' \
+            --exclude=.github \
+            .
+          echo "Archive size: $(du -h deploy.tar.gz | cut -f1)"
+
+      - name: Install cloudflared
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+          sudo dpkg -i cloudflared.deb
+          rm cloudflared.deb
+          cloudflared --version
+
+      - name: Configure SSH
+        env:
+          NAS_SSH_KEY: ${{ secrets.NAS_SSH_KEY }}
+          NAS_SSH_HOSTNAME: ${{ secrets.NAS_SSH_HOSTNAME }}
+          NAS_USER: ${{ secrets.NAS_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$NAS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          cat > ~/.ssh/config << EOF
+          Host nas-deploy
+            HostName $NAS_SSH_HOSTNAME
+            User $NAS_USER
+            IdentityFile ~/.ssh/deploy_key
+            ProxyCommand cloudflared access ssh --hostname %h
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Transfer archive to NAS
+        env:
+          NAS_DEPLOY_PATH: ${{ secrets.NAS_DEPLOY_PATH }}
+        run: |
+          ssh nas-deploy "mkdir -p $NAS_DEPLOY_PATH"
+          scp deploy.tar.gz nas-deploy:"$NAS_DEPLOY_PATH/deploy.tar.gz"
+
+      - name: Deploy on NAS
+        env:
+          NAS_DEPLOY_PATH: ${{ secrets.NAS_DEPLOY_PATH }}
+        run: |
+          ssh nas-deploy bash -s -- "$NAS_DEPLOY_PATH" << 'DEPLOY_SCRIPT'
+          set -e
+          DEPLOY_PATH="$1"
+          cd "$DEPLOY_PATH"
+
+          # Verify .env exists on the NAS
+          if [ ! -f .env ]; then
+            echo "ERREUR: Fichier .env manquant sur le NAS !"
+            echo "Creez-le manuellement avant de deployer."
+            exit 1
+          fi
+          echo ".env present sur le NAS"
+
+          # Verify archive
+          ARCHIVE_SIZE=$(stat -c %s deploy.tar.gz 2>/dev/null || echo 0)
+          if [ "$ARCHIVE_SIZE" -eq 0 ]; then
+            echo "ERREUR: Archive vide ou manquante"
+            exit 1
+          fi
+          echo "Archive recue: $(($ARCHIVE_SIZE / 1024)) KB"
+
+          # Extract (does NOT overwrite .env since it's not in the archive)
+          echo "--- Decompression ---"
+          tar -xzf deploy.tar.gz && rm deploy.tar.gz
+
+          # Prepare
+          mkdir -p logs
+
+          # Docker
+          echo "--- Arret des conteneurs ---"
+          /usr/local/bin/docker-compose down 2>/dev/null || true
+
+          echo "--- Construction des images ---"
+          /usr/local/bin/docker-compose build
+
+          echo "--- Demarrage des conteneurs ---"
+          /usr/local/bin/docker-compose up -d
+
+          # Health check
+          echo "--- Health check ---"
+          for i in 1 2 3 4 5; do
+            sleep 5
+            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+              echo "Health check OK (tentative $i)"
+              echo "--- Statut ---"
+              /usr/local/bin/docker-compose ps
+              echo "--- Logs recents ---"
+              /usr/local/bin/docker-compose logs --tail=20
+              exit 0
+            fi
+            echo "Health check tentative $i/5 echouee, nouvelle tentative dans 5s..."
+          done
+
+          echo "ERREUR: Health check echoue apres 5 tentatives"
+          echo "--- Logs (30 dernieres lignes) ---"
+          /usr/local/bin/docker-compose logs --tail=30
+          exit 1
+          DEPLOY_SCRIPT
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/config
