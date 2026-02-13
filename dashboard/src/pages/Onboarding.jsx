@@ -82,7 +82,7 @@ export default function Onboarding() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Onboarding</h1>
+        <h1 className="page-title">Onboarding V2</h1>
         <p className="page-description">
           Create a private thread workflow for new members joining your server.
         </p>

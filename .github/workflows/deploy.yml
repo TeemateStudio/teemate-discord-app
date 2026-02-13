@@ -125,9 +125,9 @@ jobs:
           # Prepare
           mkdir -p logs
 
-          # Docker (rebuild sans arreter cloudflared pour garder le tunnel SSH)
+          # Docker (rebuild uniquement discord-app pour ne pas toucher cloudflared)
           echo "--- Reconstruction et redemarrage ---"
-          /usr/local/bin/docker-compose up -d --build
+          /usr/local/bin/docker-compose up -d --build discord-app
 
           # Health check
           echo "--- Health check ---"
