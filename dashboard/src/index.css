@@ -6,20 +6,20 @@
 }
 
 :root {
-  --bg: #0a0a0f;
-  --surface: #12121a;
-  --surface-hover: #1a1a2e;
-  --surface-active: #22223a;
-  --border: #2a2a3e;
+  --bg: #313338;
+  --surface: #2b2d31;
+  --surface-hover: #35373c;
+  --surface-active: #3f4147;
+  --border: #3f4147;
   --primary: #5865F2;
   --primary-hover: #4752c4;
-  --text: #ffffff;
-  --text-secondary: #8b8b9e;
-  --text-muted: #5c5c70;
-  --success: #57F287;
-  --danger: #ED4245;
-  --danger-hover: #c93b3e;
-  --warning: #FEE75C;
+  --text: #f2f3f5;
+  --text-secondary: #b5bac1;
+  --text-muted: #949ba4;
+  --success: #23a55a;
+  --danger: #da373c;
+  --danger-hover: #a12828;
+  --warning: #f0b232;
   --radius: 8px;
   --radius-lg: 12px;
   --transition: 150ms ease;
