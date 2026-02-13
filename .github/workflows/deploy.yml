@@ -66,6 +66,16 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
+      - name: Debug SSH connection
+        env:
+          NAS_SSH_HOSTNAME: ${{ secrets.NAS_SSH_HOSTNAME }}
+        run: |
+          echo "Hostname: $NAS_SSH_HOSTNAME"
+          nslookup "$NAS_SSH_HOSTNAME" || true
+          cloudflared access ssh --hostname "$NAS_SSH_HOSTNAME" --help || true
+          cat ~/.ssh/config
+          ssh -vvv nas-deploy echo "SSH OK" 2>&1 | head -50 || true
+
       - name: Transfer archive to NAS
         env:
           NAS_DEPLOY_PATH: ${{ secrets.NAS_DEPLOY_PATH }}
