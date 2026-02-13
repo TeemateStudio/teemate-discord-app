@@ -41,7 +41,7 @@ export async function handleInteraction(req, res) {
     return res.status(400).json({ error: 'unknown command' });
   }
 
-  // Handle button/dropdown interactions (onboarding)
+  // Handle dropdown interactions (onboarding)
   if (type === InteractionType.MESSAGE_COMPONENT) {
     const customId = req.body.data?.custom_id;
     const values = req.body.data?.values; // for dropdown
@@ -50,7 +50,7 @@ export async function handleInteraction(req, res) {
       const parts = customId.split(':');
       const guildId = parts[1];
       const blockId = parts[2];
-      const optionValue = parts[3]; // button value or 'select'
+      const optionValue = parts[3]; // 'select' for dropdown
 
       try {
         const onbConfig = await OnboardingConfig.findOne({ guildId });
@@ -63,43 +63,53 @@ export async function handleInteraction(req, res) {
         }
 
         const userId = req.body.member?.user?.id || req.body.user?.id;
-        const currentRolesIds = req.body.member?.roles?.map((r) => r.id) || [];
-        let roleName = null;
+        const currentRolesIds = req.body.member?.roles || [];
+        const roleMentions = new Set();
 
         if (optionValue === 'select' && values?.length) {
-          // Dropdown — find matching option by value
-          for (const comp of block.components) {
-            const opt = comp.options?.find((o) => o.value === values[0]);
-            if (opt?.action?.roleId && !currentRolesIds.includes(opt.action.roleId)) {
-              await addMemberRole(guildId, userId, opt.action.roleId);
-              roleName = opt.label;
-              break;
-            }
-            if (opt?.action?.roleId && currentRolesIds.includes(opt.action.roleId)) {
-              await removeMemberRole(guildId, userId, opt.action.roleId);
-              roleName = opt.label;
-              break;
-            }
-          }
-        } else {
-          // Button — find matching option by value
-          for (const comp of block.components) {
-            const opt = comp.options?.find((o) => o.value === optionValue);
-            if (opt?.action?.roleId) {
-              await addMemberRole(guildId, userId, opt.action.roleId);
-              roleName = opt.label;
-              break;
-            }
-          }
-        }
+          // Dropdown — synchronise roles with all selected values (supports multi-select)
+          const selectedValues = new Set(values);
 
-        return res.send({
-          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: {
-            content: roleName ? `Done! You now have the **${roleName}** role.` : 'Done!',
-            flags: 64,
-          },
-        });
+          for (const comp of block.components) {
+            for (const opt of comp.options || []) {
+              if (!opt?.action?.roleId) continue;
+
+              const hasRole = currentRolesIds.includes(opt.action.roleId);
+              const isSelected = selectedValues.has(opt.value);
+
+              // Pour l'affichage final: on garde toutes les options sélectionnées
+              if (isSelected) {
+                roleMentions.add(`<@&${opt.action.roleId}>`);
+              }
+
+              // Ajoute le rôle s'il vient d'être sélectionné
+              if (isSelected && !hasRole) {
+                await addMemberRole(guildId, userId, opt.action.roleId);
+              }
+
+              // Retire le rôle s'il n'est plus sélectionné
+              if (!isSelected && hasRole) {
+                await removeMemberRole(guildId, userId, opt.action.roleId);
+              }
+            }
+          }
+          
+          let content = 'Done!';
+          const rolesList = Array.from(roleMentions);
+          if (rolesList.length === 1) {
+            content = `Tu as désormais le rôle: ${rolesList[0]}`;
+          } else if (rolesList.length > 1) {
+            content = `Tu as désormais les rôles: ${rolesList.join(', ')}`;
+          }
+
+          return res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content,
+              flags: 64,
+            },
+          });
+        }
       } catch (err) {
         console.error('Onboarding interaction error:', err);
         return res.send({

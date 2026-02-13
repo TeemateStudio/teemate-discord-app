@@ -120,7 +120,8 @@ async function handleGuildMemberAdd(data) {
     const { executeOnboarding } = await import('./onboarding.js');
     const onbConfig = await OnboardingConfig.findOne({ guildId });
     if (onbConfig?.enabled && onbConfig.channelId && onbConfig.blocks?.length) {
-      executeOnboarding(guildId, user.id, user.user, guildName, onbConfig)
+      const displayName = data.nick || user.global_name || user.username;
+      executeOnboarding(guildId, user.id, displayName, guildName, onbConfig)
         .catch((err) => console.error('Onboarding error:', err));
     }
   }

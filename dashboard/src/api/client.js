@@ -11,7 +11,10 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    window.location.href = '/dashboard';
+    const onLoginPage = window.location.pathname === '/dashboard' || window.location.pathname === '/dashboard/';
+    if (!onLoginPage) {
+      window.location.href = '/dashboard';
+    }
     return null;
   }
 

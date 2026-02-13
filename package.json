@@ -11,7 +11,11 @@
   "scripts": {
     "start": "node src/app.js",
     "register": "node src/bot/commands.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "dev:dashboard": "cd dashboard && npm run dev",
+    "dev:db": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:db:stop": "docker compose -f docker-compose.dev.yml down",
+    "dev:all": "concurrently -n backend,dashboard -c blue,magenta \"npm run dev\" \"npm run dev:dashboard\""
   },
   "license": "MIT",
   "dependencies": {
@@ -24,6 +28,7 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.0.0"
   }
 }

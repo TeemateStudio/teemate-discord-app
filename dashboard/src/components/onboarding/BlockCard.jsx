@@ -109,8 +109,7 @@ function ComponentEditor({ component, compIndex, roles, emojis, onUpdate }) {
 
   function addOption() {
     const options = [...(component.options || [])];
-    const maxOpts = component.type === 'dropdown' ? 25 : 5;
-    if (options.length >= maxOpts) return;
+    if (options.length >= 25) return;
     options.push({
       label: '',
       value: `opt_${Date.now()}`,
@@ -131,41 +130,25 @@ function ComponentEditor({ component, compIndex, roles, emojis, onUpdate }) {
     updateOptions(component.options.filter((_, i) => i !== idx));
   }
 
-  const maxOpts = component.type === 'dropdown' ? 25 : 5;
-  const isDropdown = component.type === 'dropdown';
-
   return (
     <div className="ob-component-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        <select
-          className="form-select"
-          style={{ width: 140 }}
-          value={component.type}
-          onChange={(e) => onUpdate({ ...component, type: e.target.value })}
-        >
-          <option value="button">Buttons</option>
-          <option value="dropdown">Dropdown</option>
-        </select>
-        {isDropdown && (
-          <>
-            <input
-              type="text"
-              className="form-input"
-              style={{ flex: 1, minWidth: 120 }}
-              value={component.placeholder || ''}
-              onChange={(e) => onUpdate({ ...component, placeholder: e.target.value })}
-              placeholder="Placeholder text..."
-            />
-            <label className="ob-multi-toggle" title="Allow selecting multiple options">
-              <input
-                type="checkbox"
-                checked={component.multiSelect || false}
-                onChange={(e) => onUpdate({ ...component, multiSelect: e.target.checked })}
-              />
-              <span>Multi-select</span>
-            </label>
-          </>
-        )}
+        <input
+          type="text"
+          className="form-input"
+          style={{ flex: 1, minWidth: 120 }}
+          value={component.placeholder || ''}
+          onChange={(e) => onUpdate({ ...component, placeholder: e.target.value })}
+          placeholder="Placeholder text..."
+        />
+        <label className="ob-multi-toggle" title="Allow selecting multiple options">
+          <input
+            type="checkbox"
+            checked={component.multiSelect || false}
+            onChange={(e) => onUpdate({ ...component, multiSelect: e.target.checked })}
+          />
+          <span>Multi-select</span>
+        </label>
       </div>
       {(component.options || []).map((opt, i) => (
         <OptionEditor
@@ -174,12 +157,12 @@ function ComponentEditor({ component, compIndex, roles, emojis, onUpdate }) {
           index={i}
           roles={roles}
           emojis={emojis}
-          showEmoji={isDropdown}
+          showEmoji={true}
           onUpdate={(data) => updateOption(i, data)}
           onRemove={() => removeOption(i)}
         />
       ))}
-      {(component.options || []).length < maxOpts && (
+      {(component.options || []).length < 25 && (
         <button className="btn btn-ghost btn-sm" onClick={addOption} style={{ marginTop: 4 }}>
           + Add option
         </button>
@@ -197,7 +180,7 @@ function ActionBlockEditor({ block, roles, emojis, onChange }) {
 
   function addComponent() {
     const components = [...(block.components || [])];
-    components.push({ type: 'button', placeholder: '', multiSelect: false, options: [] });
+    components.push({ type: 'dropdown', placeholder: '', multiSelect: false, options: [] });
     onChange({ ...block, components });
   }
 
@@ -212,7 +195,7 @@ function ActionBlockEditor({ block, roles, emojis, onChange }) {
           className="form-textarea"
           value={block.actionMessage || ''}
           onChange={(e) => onChange({ ...block, actionMessage: e.target.value })}
-          placeholder="Message displayed above the buttons/dropdown..."
+          placeholder="Message displayed above the dropdown..."
           rows={2}
         />
       </div>
@@ -245,7 +228,7 @@ function ActionBlockEditor({ block, roles, emojis, onChange }) {
 const TYPE_LABELS = {
   message: { label: 'Message', color: 'var(--primary)' },
   delay: { label: 'Delay', color: 'var(--warning)' },
-  action: { label: 'Action', color: 'var(--success)' },
+  action: { label: 'Dropdown', color: 'var(--success)' },
 };
 
 export default function BlockCard({ block, index, total, roles, emojis, onUpdate, onRemove, onMove }) {

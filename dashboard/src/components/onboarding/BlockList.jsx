@@ -11,7 +11,7 @@ const BLOCK_TEMPLATES = {
     id: generateId(),
     type: 'action',
     actionMessage: '',
-    components: [{ type: 'button', placeholder: '', options: [] }],
+    components: [{ type: 'dropdown', placeholder: '', multiSelect: false, options: [] }],
   }),
 };
 
@@ -68,7 +68,7 @@ export default function BlockList({ blocks, roles, emojis, onChange }) {
         </button>
         <button className="btn btn-ghost" onClick={() => addBlock('action')} disabled={blocks.length >= 20}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
-          Action
+          Dropdown
         </button>
       </div>
     </div>

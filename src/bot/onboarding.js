@@ -18,22 +18,7 @@ function buildComponents(block, guildId) {
   const rows = [];
 
   for (const comp of block.components) {
-    if (comp.type === 'button') {
-      const buttons = comp.options.map((opt) => ({
-        type: 2, // BUTTON
-        style: 1, // PRIMARY
-        label: opt.label,
-        emoji: buildEmoji(opt.emoji),
-        custom_id: `onb:${guildId}:${block.id}:${opt.value}`,
-      }));
-      // Discord allows max 5 buttons per row
-      for (let i = 0; i < buttons.length; i += 5) {
-        rows.push({
-          type: 1, // ACTION_ROW
-          components: buttons.slice(i, i + 5),
-        });
-      }
-    } else if (comp.type === 'dropdown') {
+    if (comp.type === 'dropdown') {
       const optCount = comp.options.length;
       rows.push({
         type: 1, // ACTION_ROW

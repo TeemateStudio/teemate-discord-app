@@ -483,11 +483,18 @@ router.post('/:id/onboarding/test', requireGuildAdmin, async (req, res) => {
     }
 
     const userId = req.session.userId;
-    const username = req.session.username || 'User';
     const guildName = req.guild.name || 'the server';
 
+    // Fetch display name: server nick > global display name > username
+    let displayName = req.session.username || 'User';
+    try {
+      const memberRes = await DiscordRequest(`guilds/${req.params.id}/members/${userId}`, { method: 'GET' });
+      const member = await memberRes.json();
+      displayName = member.nick || member.user?.global_name || member.user?.username || displayName;
+    } catch {}
+
     // Fire-and-forget
-    executeOnboarding(req.params.id, userId, username, guildName, config)
+    executeOnboarding(req.params.id, userId, displayName, guildName, config)
       .catch((err) => console.error('Test onboarding error:', err));
 
     res.json({ success: true });
