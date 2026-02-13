@@ -1605,6 +1605,119 @@ a.ep-author-name:hover {
   flex-shrink: 0;
 }
 
+/* ── Onboarding Block Editor ── */
+.ob-block-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ob-connector {
+  width: 2px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 auto;
+}
+
+.ob-block-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: border-color var(--transition);
+}
+
+.ob-block-card:hover {
+  border-color: var(--text-muted);
+}
+
+.ob-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-block-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bg);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ob-block-controls {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.ob-component-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.ob-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ob-option-row .form-input {
+  min-width: 0;
+}
+
+.ob-option-row .form-select {
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.ob-add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.ob-test-btn {
+  white-space: nowrap;
+}
+
+.ob-multi-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ob-multi-toggle input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 14px;
+  height: 14px;
+}
+
+.ob-emoji-select {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ob-emoji-preview {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {

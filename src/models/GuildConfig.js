@@ -15,6 +15,12 @@ const guildConfigSchema = new mongoose.Schema({
     embedDescription: { type: String, default: '' },
   },
 
+  // Onboarding (quick check flags, full config in OnboardingConfig)
+  onboarding: {
+    enabled: { type: Boolean, default: false },
+    channelId: { type: String, default: null },
+  },
+
   // Moderation logs
   logs: {
     enabled: { type: Boolean, default: false },

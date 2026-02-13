@@ -25,6 +25,59 @@ export async function DiscordRequest(endpoint, options) {
 }
 
 /**
+ * Create a private thread in a channel
+ * @param {string} channelId - Parent channel ID
+ * @param {string} name - Thread name
+ */
+export async function createPrivateThread(channelId, name) {
+  const res = await DiscordRequest(`channels/${channelId}/threads`, {
+    method: 'POST',
+    body: {
+      name,
+      type: 12, // GUILD_PRIVATE_THREAD
+      invitable: false,
+      auto_archive_duration: 1440, // 24h
+    },
+  });
+  return res.json();
+}
+
+/**
+ * Add a user to a thread
+ * @param {string} threadId - Thread channel ID
+ * @param {string} userId - User ID to add
+ */
+export async function addThreadMember(threadId, userId) {
+  await DiscordRequest(`channels/${threadId}/thread-members/${userId}`, {
+    method: 'PUT',
+  });
+}
+
+/**
+ * Add a role to a guild member
+ * @param {string} guildId - Guild ID
+ * @param {string} userId - User ID
+ * @param {string} roleId - Role ID to add
+ */
+export async function addMemberRole(guildId, userId, roleId) {
+  await DiscordRequest(`guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+    method: 'PUT',
+  });
+}
+
+/**
+ * Remove a role from a guild member
+ * @param {string} guildId - Guild ID
+ * @param {string} userId - User ID
+ * @param {string} roleId - Role ID to remove
+ */
+export async function removeMemberRole(guildId, userId, roleId) {
+  await DiscordRequest(`guilds/${guildId}/members/${userId}/roles/${roleId}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
  * Install global commands to Discord
  * @param {string} appId - Discord application ID
  * @param {array} commands - Array of command objects

@@ -75,10 +75,9 @@ function replaceVars(text, member, guild) {
 async function handleGuildMemberAdd(data) {
   const { guild_id: guildId, user } = data;
   const config = await GuildConfig.findOne({ guildId });
-  if (!config?.welcome?.enabled || !config.welcome.channelId) return;
 
-  // Fetch guild name for variables
-  let guildName = config.guildName;
+  // Fetch guild name for variables (used by both welcome and onboarding)
+  let guildName = config?.guildName;
   if (!guildName) {
     try {
       const res = await DiscordRequest(`guilds/${guildId}`, { method: 'GET' });
@@ -87,30 +86,44 @@ async function handleGuildMemberAdd(data) {
     } catch { guildName = 'the server'; }
   }
 
-  const guildInfo = { name: guildName };
-  const member = { user };
+  // Welcome message
+  if (config?.welcome?.enabled && config.welcome.channelId) {
+    const guildInfo = { name: guildName };
+    const member = { user };
 
-  const messageText = config.welcome.message
-    ? replaceVars(config.welcome.message, member, guildInfo)
-    : null;
+    const messageText = config.welcome.message
+      ? replaceVars(config.welcome.message, member, guildInfo)
+      : null;
 
-  let embed = null;
-  if (config.welcome.embedEnabled) {
-    embed = {
-      color: parseInt((config.welcome.embedColor || '#5865F2').replace('#', ''), 16),
-      title: config.welcome.embedTitle
-        ? replaceVars(config.welcome.embedTitle, member, guildInfo)
-        : undefined,
-      description: config.welcome.embedDescription
-        ? replaceVars(config.welcome.embedDescription, member, guildInfo)
-        : undefined,
-      thumbnail: user.avatar
-        ? { url: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128` }
-        : undefined,
-    };
+    let embed = null;
+    if (config.welcome.embedEnabled) {
+      embed = {
+        color: parseInt((config.welcome.embedColor || '#5865F2').replace('#', ''), 16),
+        title: config.welcome.embedTitle
+          ? replaceVars(config.welcome.embedTitle, member, guildInfo)
+          : undefined,
+        description: config.welcome.embedDescription
+          ? replaceVars(config.welcome.embedDescription, member, guildInfo)
+          : undefined,
+        thumbnail: user.avatar
+          ? { url: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128` }
+          : undefined,
+      };
+    }
+
+    await sendChannelMessage(config.welcome.channelId, messageText, embed);
   }
 
-  await sendChannelMessage(config.welcome.channelId, messageText, embed);
+  // Onboarding
+  if (config?.onboarding?.enabled && config.onboarding.channelId) {
+    const { default: OnboardingConfig } = await import('../models/OnboardingConfig.js');
+    const { executeOnboarding } = await import('./onboarding.js');
+    const onbConfig = await OnboardingConfig.findOne({ guildId });
+    if (onbConfig?.enabled && onbConfig.channelId && onbConfig.blocks?.length) {
+      executeOnboarding(guildId, user.id, user.user, guildName, onbConfig)
+        .catch((err) => console.error('Onboarding error:', err));
+    }
+  }
 }
 
 async function handleGuildMemberRemove(data) {

@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { requireGuildAdmin } from './middleware.js';
 import GuildConfig from '../models/GuildConfig.js';
 import Embed from '../models/Embed.js';
+import OnboardingConfig from '../models/OnboardingConfig.js';
 import { DiscordRequest } from '../bot/utils.js';
+import { executeOnboarding } from '../bot/onboarding.js';
 
 const router = Router();
 
@@ -45,13 +47,15 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', requireGuildAdmin, async (req, res) => {
   try {
-    const [channelsRes, rolesRes] = await Promise.all([
+    const [channelsRes, rolesRes, emojisRes] = await Promise.all([
       DiscordRequest(`guilds/${req.params.id}/channels`, { method: 'GET' }),
       DiscordRequest(`guilds/${req.params.id}/roles`, { method: 'GET' }),
+      DiscordRequest(`guilds/${req.params.id}/emojis`, { method: 'GET' }),
     ]);
 
     const channels = await channelsRes.json();
     const roles = await rolesRes.json();
+    const emojis = await emojisRes.json();
 
     // Filter to text channels only (type 0) and sort by position
     const textChannels = channels
@@ -64,12 +68,17 @@ router.get('/:id', requireGuildAdmin, async (req, res) => {
       .sort((a, b) => b.position - a.position)
       .map((r) => ({ id: r.id, name: r.name, color: r.color, position: r.position }));
 
+    const guildEmojis = (Array.isArray(emojis) ? emojis : [])
+      .filter((e) => e.available !== false)
+      .map((e) => ({ id: e.id, name: e.name, animated: e.animated || false }));
+
     res.json({
       id: req.guild.id,
       name: req.guild.name,
       icon: req.guild.icon,
       channels: textChannels,
       roles: sortedRoles,
+      emojis: guildEmojis,
     });
   } catch (err) {
     console.error('Error fetching guild details:', err);
@@ -368,6 +377,123 @@ router.post('/:id/embeds/:embedId/send', requireGuildAdmin, async (req, res) => 
   } catch (err) {
     console.error('Error sending embed:', err);
     res.status(500).json({ error: 'Failed to send embed' });
+  }
+});
+
+// ── Onboarding ──
+
+function validateOnboardingBlocks(blocks) {
+  const errors = [];
+  if (!Array.isArray(blocks)) return ['blocks must be an array'];
+  if (blocks.length > 20) errors.push('Maximum 20 blocks allowed');
+
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (!b.id || !b.type) {
+      errors.push(`Block ${i}: missing id or type`);
+      continue;
+    }
+    if (!['message', 'delay', 'action'].includes(b.type)) {
+      errors.push(`Block ${i}: invalid type "${b.type}"`);
+    }
+    if (b.type === 'delay') {
+      const s = Number(b.delaySeconds);
+      if (!s || s < 1 || s > 300) errors.push(`Block ${i}: delay must be 1-300 seconds`);
+    }
+    if (b.type === 'action' && b.components) {
+      for (const comp of b.components) {
+        if (comp.type === 'button' && comp.options?.length > 5) {
+          errors.push(`Block ${i}: max 5 buttons per component`);
+        }
+        if (comp.type === 'dropdown' && comp.options?.length > 25) {
+          errors.push(`Block ${i}: max 25 dropdown options`);
+        }
+      }
+    }
+  }
+  return errors;
+}
+
+/**
+ * GET /api/guilds/:id/onboarding - Get onboarding config
+ */
+router.get('/:id/onboarding', requireGuildAdmin, async (req, res) => {
+  try {
+    let config = await OnboardingConfig.findOne({ guildId: req.params.id });
+    if (!config) {
+      config = await OnboardingConfig.create({ guildId: req.params.id });
+    }
+    res.json(config);
+  } catch (err) {
+    console.error('Error fetching onboarding config:', err);
+    res.status(500).json({ error: 'Failed to fetch onboarding config' });
+  }
+});
+
+/**
+ * PATCH /api/guilds/:id/onboarding - Update onboarding config
+ */
+router.patch('/:id/onboarding', requireGuildAdmin, async (req, res) => {
+  try {
+    const { enabled, channelId, blocks } = req.body;
+
+    if (blocks !== undefined) {
+      const errors = validateOnboardingBlocks(blocks);
+      if (errors.length) return res.status(400).json({ error: errors.join(', ') });
+    }
+
+    const update = { updatedBy: req.session.userId };
+    if (enabled !== undefined) update.enabled = enabled;
+    if (channelId !== undefined) update.channelId = channelId;
+    if (blocks !== undefined) update.blocks = blocks;
+
+    const config = await OnboardingConfig.findOneAndUpdate(
+      { guildId: req.params.id },
+      update,
+      { new: true, upsert: true, runValidators: true }
+    );
+
+    // Sync flags to GuildConfig for quick gateway check
+    await GuildConfig.findOneAndUpdate(
+      { guildId: req.params.id },
+      {
+        $set: {
+          'onboarding.enabled': config.enabled,
+          'onboarding.channelId': config.channelId,
+        },
+      },
+      { upsert: true }
+    );
+
+    res.json(config);
+  } catch (err) {
+    console.error('Error updating onboarding config:', err);
+    res.status(500).json({ error: 'Failed to update onboarding config' });
+  }
+});
+
+/**
+ * POST /api/guilds/:id/onboarding/test - Test onboarding for the current user
+ */
+router.post('/:id/onboarding/test', requireGuildAdmin, async (req, res) => {
+  try {
+    const config = await OnboardingConfig.findOne({ guildId: req.params.id });
+    if (!config || !config.channelId || !config.blocks?.length) {
+      return res.status(400).json({ error: 'Onboarding not configured or no blocks' });
+    }
+
+    const userId = req.session.userId;
+    const username = req.session.username || 'User';
+    const guildName = req.guild.name || 'the server';
+
+    // Fire-and-forget
+    executeOnboarding(req.params.id, userId, username, guildName, config)
+      .catch((err) => console.error('Test onboarding error:', err));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error testing onboarding:', err);
+    res.status(500).json({ error: 'Failed to test onboarding' });
   }
 });
 

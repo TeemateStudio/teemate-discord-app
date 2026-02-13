@@ -42,6 +42,11 @@ export const api = {
   getLogs: (id) => request(`/guilds/${id}/logs`),
   updateLogs: (id, data) => request(`/guilds/${id}/logs`, { method: 'PATCH', body: JSON.stringify(data) }),
 
+  // Onboarding
+  getOnboarding: (id) => request(`/guilds/${id}/onboarding`),
+  updateOnboarding: (id, data) => request(`/guilds/${id}/onboarding`, { method: 'PATCH', body: JSON.stringify(data) }),
+  testOnboarding: (id) => request(`/guilds/${id}/onboarding/test`, { method: 'POST' }),
+
   // Embeds
   getEmbeds: (id) => request(`/guilds/${id}/embeds`),
   createEmbed: (id, data) => request(`/guilds/${id}/embeds`, { method: 'POST', body: JSON.stringify(data) }),
