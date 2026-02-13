@@ -91,7 +91,7 @@ jobs:
           NAS_DEPLOY_PATH: ${{ secrets.NAS_DEPLOY_PATH }}
         run: |
           ssh nas-deploy "mkdir -p $NAS_DEPLOY_PATH"
-          scp deploy.tar.gz nas-deploy:"$NAS_DEPLOY_PATH/deploy.tar.gz"
+          cat deploy.tar.gz | ssh nas-deploy "cat > $NAS_DEPLOY_PATH/deploy.tar.gz"
 
       - name: Deploy on NAS
         env:
